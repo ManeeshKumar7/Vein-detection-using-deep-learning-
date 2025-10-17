@@ -1,0 +1,25 @@
+# Core ML and Computer Vision
+ultralytics>=8.0.0
+torch>=2.0.0
+torchvision>=0.15.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# Web Framework
+Flask>=2.3.0
+Flask-CORS>=4.0.0
+
+# Image Processing
+scikit-image>=0.21.0
+matplotlib>=3.7.0
+
+# Utilities
+requests>=2.31.0
+tqdm>=4.65.0
+pyyaml>=6.0
+
+# Optional: For better performance
+# CUDA support (uncomment if you have CUDA)
+# torch-audio>=2.0.0
+# torchaudio>=2.0.0

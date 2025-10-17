@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jugular Vein Detection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .header p {
+            font-size: 1.125rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        .upload-area {
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+        }
+
+        .upload-area:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            gap: 8px;
+            margin: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .image-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #f8fafc;
+            margin: 16px 0;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .detection-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .stat-card {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .success-message {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #16a34a;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .control-group input {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            width: 120px;
+        }
+
+        .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🧠 Jugular Vein Detection</h1>
+            <p>AI-powered medical imaging analysis for jugular vein identification</p>
+        </header>
+
+        <div class="card">
+            <h2>📤 Upload Medical Image</h2>
+            
+            <div class="upload-area" id="uploadArea">
+                <p style="font-size: 16px; color: #64748b; margin-bottom: 8px;">
+                    Click to select an image or drag & drop here
+                </p>
+                <p style="font-size: 14px; color: #94a3b8;">
+                    Supports JPEG, PNG, BMP, TIFF formats
+                </p>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            </div>
+
+            <div id="imagePreview" class="image-container hidden">
+                <img id="previewImg" alt="Preview">
+            </div>
+
+            <div class="controls" id="controls" style="display: none;">
+                <div class="control-group">
+                    <label for="confidence">Confidence Threshold</label>
+                    <input type="number" id="confidence" min="0.1" max="1.0" step="0.1" value="0.2">
+                </div>
+                
+                <button class="btn btn-primary" id="detectBtn">
+                    👁️ Detect Jugular Veins
+                </button>
+
+                <button class="btn btn-secondary" id="resetBtn">
+                    🔄 Reset
+                </button>
+            </div>
+
+            <div id="errorMessage" class="error-message hidden"></div>
+        </div>
+
+        <div class="card hidden" id="resultsCard">
+            <h2>📊 Detection Results</h2>
+            
+            <div class="detection-stats" id="statsContainer">
+                <!-- Stats will be populated here -->
+            </div>
+
+            <div class="results-grid">
+                <div>
+                    <h3>Original Image</h3>
+                    <div class="image-container">
+                        <img id="originalImg" alt="Original">
+                    </div>
+                </div>
+                <div>
+                    <h3>Detection Results</h3>
+                    <div class="image-container">
+                        <img id="resultImg" alt="Results">
+                        <button class="btn btn-primary" id="downloadBtn" style="position: absolute; top: 12px; right: 12px; padding: 8px 12px; font-size: 12px;">
+                            💾 Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="detectionDetails" style="margin-top: 24px;">
+                <!-- Detection details will be populated here -->
+            </div>
+        </div>
+
+        <div class="card" style="text-align: center; background: rgba(255, 255, 255, 0.8);">
+            <h3>⚙️ About This Tool</h3>
+            <p style="margin-top: 12px; color: #64748b; line-height: 1.6;">
+                This application uses YOLOv11 segmentation models to detect and highlight jugular veins in medical images. 
+                The detected veins are highlighted in blue with adjustable confidence thresholds for optimal results.
+            </p>
+            <p style="margin-top: 8px; font-size: 14px; color: #94a3b8;">
+                For medical use only. Always consult with healthcare professionals for clinical decisions.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+        const controls = document.getElementById('controls');
+        const detectBtn = document.getElementById('detectBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const confidenceInput = document.getElementById('confidence');
+        const errorMessage = document.getElementById('errorMessage');
+        const resultsCard = document.getElementById('resultsCard');
+        const statsContainer = document.getElementById('statsContainer');
+        const originalImg = document.getElementById('originalImg');
+        const resultImg = document.getElementById('resultImg');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const detectionDetails = document.getElementById('detectionDetails');
+
+        let currentImage = null;
+
+        // Upload area click
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // File input change
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showError('Please select a valid image file.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                currentImage = e.target.result;
+                previewImg.src = currentImage;
+                imagePreview.classList.remove('hidden');
+                controls.style.display = 'flex';
+                hideError();
+                hideResults();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Resolve API base
+        const API_BASE = (location.protocol === 'file:' || location.hostname === '')
+            ? 'http://localhost:5000'
+            : '';
+
+        // Detect button
+        detectBtn.addEventListener('click', async () => {
+            if (!currentImage) return;
+
+            detectBtn.disabled = true;
+            detectBtn.innerHTML = '<div class="loading"></div> Analyzing...';
+            hideError();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/detect`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image: currentImage,
+                        confidence: parseFloat(confidenceInput.value)
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showResults(data);
+                } else {
+                    showError(data.error || 'Detection failed');
+                }
+            } catch (error) {
+                showError('Failed to connect to the detection service. Please make sure the backend is running.');
+                console.error('Detection error:', error);
+            } finally {
+                detectBtn.disabled = false;
+                detectBtn.innerHTML = '👁️ Detect Jugular Veins';
+            }
+        });
+
+        // Reset button
+        resetBtn.addEventListener('click', () => {
+            currentImage = null;
+            fileInput.value = '';
+            imagePreview.classList.add('hidden');
+            controls.style.display = 'none';
+            hideError();
+            hideResults();
+        });
+
+        // Download button
+        downloadBtn.addEventListener('click', () => {
+            if (resultImg.src) {
+                const link = document.createElement('a');
+                link.href = resultImg.src;
+                link.download = `jugular-vein-detection-${Date.now()}.jpg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        });
+
+        function showResults(data) {
+            originalImg.src = currentImage;
+            resultImg.src = data.result_image;
+            
+            // Update stats
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${data.total_detections}</div>
+                    <div class="stat-label">Veins Detected</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">
+                        ${data.detections.length > 0 
+                            ? Math.round(data.detections.reduce((sum, d) => sum + d.confidence, 0) / data.detections.length * 100)
+                            : 0}%
+                    </div>
+                    <div class="stat-label">Avg Confidence</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">
+                        ${data.detections.length > 0 
+                            ? Math.round(data.detections.reduce((sum, d) => sum + d.area, 0) / data.detections.length)
+                            : 0}
+                    </div>
+                    <div class="stat-label">Avg Area (pixels)</div>
+                </div>
+            `;
+
+            // Update detection details
+            if (data.detections.length > 0) {
+                detectionDetails.innerHTML = `
+                    <h3>Detection Details</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 16px;">
+                        ${data.detections.map((detection, index) => `
+                            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                <div style="font-weight: 600; margin-bottom: 8px;">Vein #${detection.id + 1}</div>
+                                <div style="font-size: 14px; color: #64748b;">
+                                    <div>Confidence: ${Math.round(detection.confidence * 100)}%</div>
+                                    <div>Area: ${detection.area} pixels</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                detectionDetails.innerHTML = '';
+            }
+
+            resultsCard.classList.remove('hidden');
+        }
+
+        function hideResults() {
+            resultsCard.classList.add('hidden');
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
