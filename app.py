@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from ultralytics import YOLO
 import cv2
@@ -7,8 +7,7 @@ import os
 import base64
 import io
 from PIL import Image
-import tempfile
-import uuid
+import math
 
 app = Flask(__name__)
 CORS(app)
@@ -19,6 +18,8 @@ model = None
 def load_model():
     """Load the YOLO model for jugular vein detection"""
     global model
+    if model is not None:
+        return True
     try:
         # Try to load the trained model, fallback to pretrained if not found
         model_paths = [
@@ -42,9 +43,31 @@ def load_model():
         print(f"❌ Error loading model: {e}")
         return False
 
+
+def ensure_model_loaded():
+    """Ensure that a YOLO model instance is available."""
+    if model is None and not load_model():
+        raise RuntimeError("Jugular vein model could not be loaded")
+    return model
+
+
+def sanitize_confidence(raw_value, default=0.2):
+    """Convert incoming confidence values into a safe float within [0, 1]."""
+    try:
+        confidence = float(raw_value)
+    except (TypeError, ValueError):
+        return default
+
+    if math.isnan(confidence):
+        return default
+
+    return max(0.0, min(1.0, confidence))
+
 def process_image(image_data, confidence_threshold=0.2):
     """Process image and return detection results"""
     try:
+        model_instance = ensure_model_loaded()
+
         # Convert base64 to image
         image_bytes = base64.b64decode(image_data.split(',')[1])
         image = Image.open(io.BytesIO(image_bytes))
@@ -53,7 +76,7 @@ def process_image(image_data, confidence_threshold=0.2):
         opencv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         
         # Run inference
-        results = model(opencv_image, imgsz=640, conf=confidence_threshold)
+        results = model_instance(opencv_image, imgsz=640, conf=confidence_threshold)
         
         # Process results
         original = results[0].orig_img.copy()
@@ -95,12 +118,22 @@ def process_image(image_data, confidence_threshold=0.2):
             "error": str(e)
         }
 
+
+@app.before_first_request
+def initialize_model():
+    """Attempt to load the model before handling any requests."""
+    try:
+        ensure_model_loaded()
+    except RuntimeError as exc:
+        app.logger.error("Model initialization failed: %s", exc)
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
+    model_ready = model is not None or load_model()
     return jsonify({
         "status": "healthy",
-        "model_loaded": model is not None
+        "model_loaded": model_ready
     })
 
 @app.route('/api/detect', methods=['POST'])
@@ -115,11 +148,17 @@ def detect_veins():
                 "error": "No image data provided"
             }), 400
         
-        confidence = data.get('confidence', 0.2)
+        confidence = sanitize_confidence(data.get('confidence'))
+        ensure_model_loaded()
         result = process_image(data['image'], confidence)
         
         return jsonify(result)
         
+    except RuntimeError as e:
+        return jsonify({
+            "success": False,
+            "error": f"Model error: {str(e)}"
+        }), 500
     except Exception as e:
         return jsonify({
             "success": False,
