@@ -407,6 +407,4 @@ Designed, developed, trained, and deployed the complete end-to-end Jugular Vein 
 
 ---
 
-## 📜 License
 
-This project is licensed under the MIT License.
